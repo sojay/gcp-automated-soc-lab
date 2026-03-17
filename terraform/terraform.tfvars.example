@@ -1,0 +1,45 @@
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+vpc_name                    = "devops-vpc"
+public_honeypot_subnet_name = "public-honeypot-subnet"
+public_honeypot_subnet_cidr = "10.10.2.0/24"
+tools_subnet_name           = "tools-subnet"
+tools_subnet_cidr           = "10.10.3.0/24"
+
+cowrie_allowed_ssh_source_ranges = ["0.0.0.0/0"]
+admin_ssh_allowed_source_ranges  = ["203.0.113.10/32"]
+cowrie_target_tags               = ["cowrie-honeypot"]
+cowrie_admin_target_tags         = ["cowrie-admin"]
+logging_vm_target_tags           = ["soc-logging"]
+
+create_cowrie_vm            = false
+cowrie_vm_name              = "cowrie-1"
+cowrie_zone                 = "us-central1-a"
+cowrie_machine_type         = "e2-micro"
+cowrie_boot_disk_image      = "projects/debian-cloud/global/images/family/debian-12"
+cowrie_boot_disk_size_gb    = 20
+cowrie_boot_disk_type       = "pd-standard"
+cowrie_enable_public_ip     = false
+cowrie_reserved_external_ip_name = null
+cowrie_attach_honeypot_tag  = false
+cowrie_vm_tags              = []
+cowrie_enable_oslogin       = true
+cowrie_admin_ssh_public_key = ""
+cowrie_admin_ssh_username   = "adminuser"
+cowrie_admin_ssh_port       = 2022
+cowrie_service_account_email = "default"
+cowrie_enable_bootstrap         = true
+cowrie_container_image          = "cowrie/cowrie"
+cowrie_container_host_port      = 22
+
+create_logging_vm            = false
+logging_vm_name              = "logging-1"
+logging_zone                 = "us-central1-b"
+logging_machine_type         = "e2-small"
+logging_boot_disk_image      = "projects/debian-cloud/global/images/family/debian-12"
+logging_boot_disk_size_gb    = 30
+logging_boot_disk_type       = "pd-standard"
+logging_enable_oslogin       = true
+logging_vm_tags              = []
+logging_service_account_email = "default"

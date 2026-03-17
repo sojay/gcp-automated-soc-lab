@@ -1,0 +1,6 @@
+---
+- import_playbook: 01-bootstrap.yml
+- import_playbook: 02-logging-stack.yml
+- import_playbook: 03-cowrie-promtail.yml
+- import_playbook: 04-health-checks.yml
+- import_playbook: 05-cloudflared.yml

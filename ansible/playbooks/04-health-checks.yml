@@ -1,0 +1,73 @@
+---
+- name: Validate logging stack on logging VM
+  hosts: logging
+  become: true
+  tasks:
+    - name: Check Loki readiness endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3100/ready
+        method: GET
+        status_code: 200
+      register: loki_ready
+      retries: 20
+      delay: 3
+      until: loki_ready.status == 200
+
+    - name: Check Grafana login endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:443/login
+        method: GET
+        status_code: [200, 302]
+      register: grafana_login
+      retries: 20
+      delay: 3
+      until: grafana_login.status in [200, 302]
+
+    - name: Check Loki and Grafana containers are running
+      ansible.builtin.command:
+        cmd: docker ps --filter name=loki --filter name=grafana
+      register: logging_containers
+      changed_when: false
+
+    - name: Assert Loki/Grafana container presence
+      ansible.builtin.assert:
+        that:
+          - "'loki' in logging_containers.stdout"
+          - "'grafana' in logging_containers.stdout"
+        fail_msg: "Expected loki and grafana containers are not both running."
+
+- name: Validate Promtail on honeypot VM
+  hosts: honeypot
+  become: true
+  tasks:
+    - name: Check Promtail targets endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9080/targets
+        method: GET
+        status_code: 200
+      register: promtail_targets
+      retries: 20
+      delay: 3
+      until: promtail_targets.status == 200
+
+    - name: Check Promtail container is running
+      ansible.builtin.command:
+        cmd: docker ps --filter name=promtail
+      register: promtail_container
+      changed_when: false
+
+    - name: Assert Promtail container presence
+      ansible.builtin.assert:
+        that:
+          - "'promtail' in promtail_container.stdout"
+        fail_msg: "Promtail container is not running."
+
+    - name: Check network path to Loki from honeypot
+      ansible.builtin.uri:
+        url: http://10.10.3.2:3100/ready
+        method: GET
+        status_code: 200
+      register: loki_from_honeypot
+      retries: 20
+      delay: 3
+      until: loki_from_honeypot.status == 200

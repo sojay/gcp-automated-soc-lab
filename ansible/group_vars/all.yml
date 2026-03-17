@@ -1,0 +1,26 @@
+---
+project_id: your-gcp-project-id
+region: us-central1
+
+logging_internal_ip: 10.10.3.2
+loki_listen_port: 3100
+grafana_listen_port: 443
+grafana_admin_user: admin
+grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') | default('change-me', true) }}"
+
+promtail_http_listen_port: "9080"
+promtail_positions_file: /var/lib/promtail/positions.yaml
+cowrie_log_dir: /home/cowrie/cowrie/var/log/cowrie
+cowrie_log_glob: /home/cowrie/cowrie/var/log/cowrie/cowrie.json*
+
+geoip_enabled: true
+promtail_geoip_db_src: ../GeoLite2-City_20260310/GeoLite2-City.mmdb
+promtail_geoip_db_path: /opt/promtail/geoip/GeoLite2-City.mmdb
+promtail_geoip_db_container_path: /etc/promtail/GeoLite2-City.mmdb
+promtail_container_log_glob: /var/log/cowrie/cowrie.json*
+
+# Cloudflared tunnel (disabled by default)
+cloudflared_enabled: false
+cloudflared_image: cloudflare/cloudflared:latest
+cloudflared_container_name: cloudflared
+cloudflared_tunnel_token: "{{ lookup('env', 'CLOUDFLARED_TUNNEL_TOKEN') | default('', true) }}"

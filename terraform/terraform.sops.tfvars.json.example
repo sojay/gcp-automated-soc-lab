@@ -1,0 +1,5 @@
+{
+  "project_id": "your-gcp-project-id",
+  "admin_ssh_allowed_source_ranges": ["203.0.113.10/32"],
+  "cowrie_admin_ssh_public_key": "ssh-ed25519 AAAA... replace-me"
+}

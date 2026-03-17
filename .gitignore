@@ -1,0 +1,16 @@
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/terraform.tfvars
+**/terraform.tfvars.old
+
+# Ansible secrets/env
+ansible/group_vars/.env
+ansible/group_vars/*.vault.yml
+
+# Local artifacts
+.idea/
+.vscode/
+.DS_Store
+*.log

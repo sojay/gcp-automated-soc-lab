@@ -1,0 +1,14 @@
+services:
+  cloudflared:
+    image: {{ cloudflared_image }}
+    container_name: {{ cloudflared_container_name }}
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARED_TUNNEL_TOKEN}

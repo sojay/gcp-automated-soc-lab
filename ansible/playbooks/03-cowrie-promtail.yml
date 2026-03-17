@@ -1,0 +1,67 @@
+---
+- name: Run Promtail on honeypot VM to ship Cowrie logs to Loki
+  hosts: honeypot
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    promtail_root: /opt/promtail
+    promtail_config_path: /opt/promtail/promtail-config.yml
+  tasks:
+    - name: Install Docker engine
+      ansible.builtin.apt:
+        name:
+          - docker.io
+        state: present
+        update_cache: true
+
+    - name: Ensure docker service is enabled and started
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create Promtail directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ promtail_root }}"
+        - /var/lib/promtail
+        - "{{ promtail_geoip_db_path | dirname }}"
+
+    - name: Copy GeoIP database to honeypot VM
+      ansible.builtin.copy:
+        src: "{{ promtail_geoip_db_src }}"
+        dest: "{{ promtail_geoip_db_path }}"
+        mode: "0644"
+      when: geoip_enabled | default(false) | bool
+
+    - name: Render Promtail configuration
+      ansible.builtin.template:
+        src: ../templates/promtail-config.yml.j2
+        dest: "{{ promtail_config_path }}"
+        mode: "0644"
+
+    - name: Remove existing Promtail container (to apply updated runtime options)
+      ansible.builtin.command:
+        cmd: docker rm -f promtail
+      register: promtail_rm
+      failed_when: promtail_rm.rc != 0 and ('No such container' not in promtail_rm.stderr)
+      changed_when: promtail_rm.rc == 0
+
+    - name: Run Promtail container
+      ansible.builtin.command:
+        cmd: >-
+          docker run -d --name promtail --restart unless-stopped
+          -p 127.0.0.1:9080:9080
+          -v {{ promtail_config_path }}:/etc/promtail/config.yml:ro
+          -v {{ cowrie_log_dir }}:/var/log/cowrie:ro
+          -v /var/lib/promtail:/var/lib/promtail
+          {% if geoip_enabled | default(false) | bool %}-v {{ promtail_geoip_db_path }}:{{ promtail_geoip_db_container_path }}:ro{% endif %}
+          grafana/promtail:3.0.0
+          -config.file=/etc/promtail/config.yml
+      register: promtail_run
+      failed_when: promtail_run.rc != 0
+      changed_when: promtail_run.rc == 0

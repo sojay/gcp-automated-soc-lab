@@ -1,0 +1,50 @@
+---
+- name: Run Cloudflared tunnel on logging VM
+  hosts: logging
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    cloudflared_root: /opt/soc/cloudflared
+    cloudflared_compose_file: /opt/soc/cloudflared/docker-compose.yml
+  tasks:
+    - name: Skip message when cloudflared is disabled
+      ansible.builtin.debug:
+        msg: "cloudflared is disabled. Set cloudflared_enabled=true to deploy tunnel."
+      when: not (cloudflared_enabled | bool)
+
+    - name: Validate tunnel token when cloudflared is enabled
+      ansible.builtin.assert:
+        that:
+          - cloudflared_tunnel_token | length > 0
+        fail_msg: "cloudflared_tunnel_token is required when cloudflared_enabled=true."
+      when: cloudflared_enabled | bool
+
+    - name: Ensure cloudflared working directory exists
+      ansible.builtin.file:
+        path: "{{ cloudflared_root }}"
+        state: directory
+        mode: "0755"
+      when: cloudflared_enabled | bool
+
+    - name: Render cloudflared compose file
+      ansible.builtin.template:
+        src: ../templates/docker-compose.cloudflared.yml.j2
+        dest: "{{ cloudflared_compose_file }}"
+        mode: "0644"
+      when: cloudflared_enabled | bool
+
+    - name: Write cloudflared environment file
+      ansible.builtin.copy:
+        dest: "{{ cloudflared_root }}/.env"
+        mode: "0600"
+        content: |
+          CLOUDFLARED_TUNNEL_TOKEN={{ cloudflared_tunnel_token }}
+      no_log: true
+      when: cloudflared_enabled | bool
+
+    - name: Start cloudflared tunnel
+      ansible.builtin.command:
+        cmd: docker-compose -f {{ cloudflared_compose_file }} up -d
+      changed_when: true
+      when: cloudflared_enabled | bool

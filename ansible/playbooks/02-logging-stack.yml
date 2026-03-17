@@ -1,0 +1,81 @@
+---
+- name: Install and run Loki + Grafana on logging VM
+  hosts: logging
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    logging_root: /opt/soc
+    loki_config_path: /opt/soc/loki/loki-config.yml
+    grafana_provisioning_dir: /opt/soc/grafana/provisioning/datasources
+    compose_file_path: /opt/soc/docker-compose.yml
+  tasks:
+    - name: Install Docker engine and docker-compose
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: true
+
+    - name: Ensure docker service is enabled and started
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create logging directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ logging_root }}"
+        - "{{ logging_root }}/loki"
+        - "{{ logging_root }}/loki/data"
+        - "{{ logging_root }}/grafana"
+        - "{{ logging_root }}/grafana/data"
+        - "{{ logging_root }}/grafana/data/plugins"
+        - "{{ logging_root }}/grafana/provisioning/alerting"
+        - "{{ logging_root }}/grafana/provisioning/dashboards"
+        - "{{ logging_root }}/grafana/provisioning/plugins"
+        - "{{ grafana_provisioning_dir }}"
+
+    - name: Set ownership for Loki data directory
+      ansible.builtin.file:
+        path: "{{ logging_root }}/loki/data"
+        state: directory
+        owner: "10001"
+        group: "10001"
+        recurse: true
+
+    - name: Set ownership for Grafana data directory
+      ansible.builtin.file:
+        path: "{{ logging_root }}/grafana/data"
+        state: directory
+        owner: "472"
+        group: "472"
+        recurse: true
+
+    - name: Copy Loki configuration
+      ansible.builtin.copy:
+        src: ../files/loki-config.yml
+        dest: "{{ loki_config_path }}"
+        mode: "0644"
+
+    - name: Copy Grafana datasource provisioning
+      ansible.builtin.template:
+        src: ../templates/grafana-datasource.yml.j2
+        dest: "{{ grafana_provisioning_dir }}/loki.yml"
+        mode: "0644"
+
+    - name: Render Docker Compose for logging stack
+      ansible.builtin.template:
+        src: ../templates/docker-compose.logging.yml.j2
+        dest: "{{ compose_file_path }}"
+        mode: "0644"
+
+    - name: Start logging stack with Docker Compose
+      ansible.builtin.command:
+        cmd: docker-compose -f {{ compose_file_path }} up -d
+      changed_when: true

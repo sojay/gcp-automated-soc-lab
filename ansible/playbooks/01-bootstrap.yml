@@ -1,0 +1,26 @@
+---
+- name: Baseline packages for all VMs
+  hosts: honeypot:logging
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  tasks:
+    - name: Force apt to use IPv4 (avoids intermittent IPv6 mirror failures)
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/99-force-ipv4
+        mode: "0644"
+        content: |
+          Acquire::ForceIPv4 "true";
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install baseline packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
