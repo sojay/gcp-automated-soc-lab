@@ -1,13 +1,43 @@
-# GCP Cowrie SOC Lab (Terraform + Ansible)
+# GCP SOC Lab: Automated Threat Intelligence
 
-This project deploys a small SOC lab on Google Cloud:
+This project demonstrates infrastructure isolation, secure log aggregation, and real-time threat monitoring using industry-standard DevOps tools. This repository contains the Infrastructure as Code (IaC) and configuration management to deploy a fully functional SOC lab on Google Cloud Platform. 
 
-- Public Cowrie honeypot VM (`cowrie-1`)
-- Private logging VM (`logging-1`) running Loki + Grafana
-- Promtail shipping Cowrie logs to Loki
-- Optional Cloudflare Tunnel (`cloudflared`) to publish Grafana securely
+## Architecture Overview
+- Public Cowrie honeypot VM (`cowrie-1`) acting as an SSH/Telnet trap on the public internet
+- Private logging VM (`logging-1`) running Loki + Grafana with No Public IP
+- Promtail agent shipping JSON logs over the internal GCP VPC network to Loki
+- Optional Cloudflare Tunnel (`cloudflared`) for secure dashboard access without opening inbound ports
+
+## Tech Stack 
+
+- Cloud: Google Platform (VPC, Compute Engine, Firewall, Cloud NAT)
+- Provisioning: Terraform (HCL)
+- Configuration: Ansible
+- Secrets: Mozilla SOPS + Age
+- Observability: Grafana, Loki, Promtail
+- Security: Cowrie, Cloudflare Tunnel
+
+
+## Technical Challenges & Solutions
+
+### The "Invisible" Logging Node Challenge
+- **The Problem**: I wanted the logging VM to have **no public IP address** to maximize security. However, this initially made it impossible for Ansible to configure the node and prevented the node from downloading Loki/Grafana updates.
+
+- **The Solution**: I implemented a GCP Cloud NAT and a CLoud Router via Terraform. This allowed the private VM to initiate outbound requests for updates while unreachable from the public internet. 
+
+### Log Ingestion Over Internal VPC
+- **The Problem**: Shipping logs from the "Public subnet to the "Private" subnet required precise firewall rules without exposing the logging stack.
+
+- **The Solution**: I architected strict ingress rules on the Tools Subnet that only allow traffic on port `3100` (Loki) specifically from the Honeypot's internal IP. This prevents "pivoting" attacks if the honeypot is compromised.
+
+### Handling Cowrie's Multi-Port Networking
+- **The Problem**: Cowrie listens on port `2222`, but attackers look for port 22. Simply changing the listener port often breaks standard SSH access for the admin.
+
+- **The Solution**: I used Ansible to automate a non-standard SSH configuration for the host (moving real SSH to 2022) and used iptables to transparently redirect all incoming traffic on `22` to Cowrie's `2222`.
 
 ## Architecture
+
+![Architecture diagram for the GCP Automated SOC Lab](docs/images/architecture.jpg)
 
 - VPC: custom network with isolated subnets
 - Honeypot path: Internet -> GCP firewall (`tcp/22`) -> Cowrie
@@ -15,19 +45,6 @@ This project deploys a small SOC lab on Google Cloud:
 - Logging path: Cowrie JSON logs -> Promtail -> Loki -> Grafana
 
 See [docs/architecture.md](docs/architecture.md) for details.
-
-## Repo Layout
-
-- `terraform/`: infra provisioning (VPC, firewall rules, VMs)
-- `ansible/`: VM software config (Loki, Grafana, Promtail, Cloudflared)
-- `docs/`: runbook and architecture notes
-
-## Prerequisites
-
-- `terraform` (>= 1.6)
-- `ansible` (core 2.15+ recommended)
-- `gcloud` CLI authenticated to your GCP project
-- IAM roles for provisioning (Compute + network + service usage permissions)
 
 ## Quick Start
 
@@ -58,6 +75,7 @@ To publish Grafana at your own domain without opening inbound ports on VM2:
 4. Run:
    - `ansible-playbook playbooks/05-cloudflared.yml -e cloudflared_enabled=true`
 
+
 ## Secure Secrets Workflow (Recommended)
 
 - Bootstrap encrypted files:
@@ -70,16 +88,8 @@ To publish Grafana at your own domain without opening inbound ports on VM2:
   - `./scripts/ansible-playbook-sops.sh playbooks/site.yml`
 - Full setup: [docs/secrets-management.md](docs/secrets-management.md)
 
-## Security Notes
+## Demo Scope & Security Notes
 
-- Do not commit:
-  - `terraform.tfvars`
-  - `.tfstate` files
-  - `ansible/group_vars/.env`
-- Restrict admin SSH (`tcp/2022`) to your `/32` IP.
-- Keep Cowrie on public `22` only after hardening/monitoring is active.
-- Recommended: use encrypted secrets files with `age + sops` via [docs/secrets-management.md](docs/secrets-management.md).
+This project was developed as part of my practical application while studying, focusing on Cloud Infrastructure and Security automation. This repo is intended as an educational/demonstration lab, not a production SOC platform.
 
-## Demo Scope
-
-This repo is intended as an educational/demonstration lab, not a production SOC platform.
+**Security (Recommended)**: Do not commit `terraform.tfvars`, `.tfstate`, `.env` files. Restrict admin SSH (`tcp/2022`) to your `/32` IP. Use encrypted secrets files with `age + sops` via [docs/secrets-management.md](docs/secrets-management.md).
