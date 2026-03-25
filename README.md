@@ -23,10 +23,10 @@ This project demonstrates infrastructure isolation, secure log aggregation, and 
 ### The "Invisible" Logging Node Challenge
 - **The Problem**: I wanted the logging VM to have **no public IP address** to maximize security. However, this initially made it impossible for Ansible to configure the node and prevented the node from downloading Loki/Grafana updates.
 
-- **The Solution**: I implemented a GCP Cloud NAT and a CLoud Router via Terraform. This allowed the private VM to initiate outbound requests for updates while unreachable from the public internet. 
+- **The Solution**: I implemented a GCP Cloud NAT and a Cloud Router via Terraform. This allowed the private VM to initiate outbound requests for updates while unreachable from the public internet. 
 
 ### Log Ingestion Over Internal VPC
-- **The Problem**: Shipping logs from the "Public subnet to the "Private" subnet required precise firewall rules without exposing the logging stack.
+- **The Problem**: Shipping logs from the "Public" subnet to the "Private" subnet required precise firewall rules without exposing the logging stack.
 
 - **The Solution**: I architected strict ingress rules on the Tools Subnet that only allow traffic on port `3100` (Loki) specifically from the Honeypot's internal IP. This prevents "pivoting" attacks if the honeypot is compromised.
 
